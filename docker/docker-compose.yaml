@@ -1,0 +1,63 @@
+services:
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    image: nutrition-postgres:local
+    container_name: nutrition-postgres
+    restart: unless-stopped
+    env_file:
+      - ./postgres/postgres.env
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nutrition-network
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/app/Dockerfile
+    image: nutrition-api:local
+    container_name: nutrition-app
+    restart: unless-stopped
+    env_file:
+      - ./app/app.env
+    ports:
+      - "${APP_PORT:-8181}:8181"
+    networks:
+      - nutrition-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  pgadmin:
+    build:
+      context: ./pgadmin
+      dockerfile: Dockerfile
+    image: nutrition-pgadmin:local
+    container_name: nutrition-pgadmin
+    restart: unless-stopped
+    env_file:
+      - ./pgadmin/pgadmin.env
+    ports:
+      - "${PGADMIN_PORT:-5435}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - nutrition-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-nutrition-postgres-data}
+  pgadmin_data:
+    name: ${PGADMIN_VOLUME_NAME:-nutrition-pgadmin-data}
+
+networks:
+  nutrition-network:
+    name: ${DOCKER_NETWORK_NAME:-nutrition-network}
+    driver: bridge
